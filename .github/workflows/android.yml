@@ -1,4 +1,4 @@
-name: Warrior Ascension Master Builder
+name: Ultimate Smart Auto-Builder
 
 on:
   push:
@@ -17,40 +17,47 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # تثبيت Gradle 7.5 لحل مشكلة التوافق (الصورة 1000159775)
       - name: Setup Gradle 7.5
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 7.5
 
-      # خطوة "تجميع الأجزاء المبعثرة" - نقل كل شيء لقلب الأندرويد
-      - name: Link Game Engine and Assets
+      # خطوة "البحث والدمج الذكي"
+      - name: Search and Merge All Missing Files
         run: |
-          # 1. إنشاء المسارات الرسمية للأندرويد
+          # 1. إنشاء الهيكل الصحيح للأندرويد
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/cpp
-          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
+          mkdir -p android/app/src/main/res/mipmap-hdpi
+          mkdir -p android/app/src/main/res/drawable
 
-          # 2. نقل ملفات الـ 10 مستويات والجرافيك والصوت
-          cp -r Content/* android/app/src/main/assets/ || true
-          
-          # 3. نقل كود القتال والحركة والترجمة (C++ / Python)
-          # سنضع الكود في مكان يراه الـ CMakeLists.txt
-          cp -r Source/* android/app/src/main/cpp/ || true
-          cp -r GameEngine/* android/app/src/main/cpp/ || true
-          
-          # 4. محاولة نقل الأيقونة لتظهر عند التثبيت
-          cp Content/Icons/*.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
+          # 2. البحث عن ملفات المحتوى (Content) ودمجها
+          echo "Searching for Content..."
+          find . -name "Content" -type d -exec cp -r {}/* android/app/src/main/assets/ \; || true
 
-      - name: Build APK (Self-Healing)
+          # 3. البحث عن ملفات البرمجة (Source & GameEngine) ودمجها للترجمة
+          echo "Searching for Source and Logic..."
+          find . -name "Source" -type d -exec cp -r {}/* android/app/src/main/cpp/ \; || true
+          find . -name "GameEngine" -type d -exec cp -r {}/* android/app/src/main/cpp/ \; || true
+
+          # 4. البحث عن الأيقونات ووضعها في مكانها لإظهارها على الموبايل
+          echo "Searching for Icons..."
+          find . -name "*.png" -path "*/Icons/*" -exec cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png \; || true
+          find . -name "*.png" -path "*/Icons/*" -exec cp {} android/app/src/main/res/drawable/icon.png \; || true
+
+          # 5. دمج ملفات البايثون لو موجودة
+          echo "Searching for Python scripts..."
+          find . -name "*.py" -exec cp {} android/app/src/main/assets/ \; || true
+
+      - name: Final Build
         working-directory: ./android
         run: |
-          # إنشاء الـ Wrapper وبناء اللعبة
+          # إصلاح مشكلة النسخة 4.4.1 (الصورة 1000159775)
           gradle wrapper --gradle-version 7.5
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload Final APK
+      - name: Upload Complete APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Ascension-Complete
+          name: Warrior-Ascension-Final-Build
           path: "android/app/build/outputs/apk/debug/*.apk"
