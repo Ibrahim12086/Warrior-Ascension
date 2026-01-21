@@ -1,39 +1,21 @@
-name: Ultimate Native Build
-
-on:
-  push:
-    branches: [ main ]
-
+name: Warrior Ascension Build
+on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-
-    - name: Setup Java 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    # استخدام أداة رسمية لتثبيت Gradle بالنسخة المطلوبة فوراً
-    - name: Setup Gradle 7.5
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '7.5'
-
-    - name: Setup Android NDK
-      uses: android-actions/setup-android@v3
-      with:
-        ndk-version: '25.2.9519653'
-
-    - name: Build APK
-      run: |
-        cd android
-        # توليد الـ Wrapper بالنسخة الجديدة
-        gradle wrapper --gradle-version 7.5
-        chmod +x gradlew
-        ./gradlew assembleDebug
-
+      - uses: actions/checkout@v4
+      - name: set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Build Full Project
+        run: |
+          chmod +x android/gradlew
+          cd android && ./gradlew assembleDebug
+      - name: Deliver Full APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Warrior-Ascension-Full-Game
+          path: android/app/build/outputs/apk/debug/app-debug.apk
