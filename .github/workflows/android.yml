@@ -1,4 +1,4 @@
-name: Ultimate Android Native Build
+name: Ultimate Native Build
 
 on:
   push:
@@ -12,19 +12,17 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Set up JDK 17
+    - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Install Gradle & Setup Wrapper
+    - name: Create Gradle Wrapper
       run: |
-        # تثبيت gradle على السيرفر فوراً
         sudo apt-get update
         sudo apt-get install -y gradle
         cd android
-        # توليد الملفات المفقودة (gradlew) أوتوماتيكياً
         gradle wrapper
         chmod +x gradlew
 
@@ -33,16 +31,16 @@ jobs:
       with:
         ndk-version: '25.2.9519653'
 
-    - name: Build APK with Gradle
+    - name: Build APK
       run: |
         cd android
         ./gradlew assembleDebug
       env:
-        ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/25.2.9519653
+        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
-    - name: Upload Finished APK
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: WarriorAscension-Final-APK
+        name: WarriorAscension-Release
         path: android/app/build/outputs/apk/debug/*.apk
 
