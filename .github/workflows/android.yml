@@ -1,4 +1,4 @@
-name: Independent Automated Builder
+name: Full Game Master Builder
 
 on:
   push:
@@ -8,38 +8,40 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. سحب الكود المتاح
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. تجهيز البيئة (Java 17)
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # 3. تثبيت Gradle 7.5 يدوياً على السيرفر (لحل مشكلة النسخة 4.4.1)
       - name: Setup Gradle 7.5
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: 7.5
 
-      # 4. عملية البناء الذكية (تجميع الناقص وبناء الـ APK)
-      - name: Auto-Assemble Everything
+      - name: Assemble Game Components
         run: |
-          # الدخول لمجلد الأندرويد
-          if [ -d "android" ]; then cd android; fi
-          
-          # إجبار السيرفر على إنشاء ملفات التشغيل الناقصة عندك
+          # 1. تجهيز مجلدات الأصول (Assets) لضمان ظهور الجرافيك والأصوات
+          mkdir -p android/app/src/main/assets
+          cp -r Content/* android/app/src/main/assets/ || true
+
+          # 2. ربط كود المحرك والقتال (C++) بمجلد البناء الرسمي
+          # هذا يضمن أن "CoreLogic.cpp" سيتم دمجه في اللعبة
+          mkdir -p android/app/src/main/cpp/Source
+          mkdir -p android/app/src/main/cpp/GameEngine
+          cp -r Source/* android/app/src/main/cpp/Source/ || true
+          cp -r GameEngine/* android/app/src/main/cpp/GameEngine/ || true
+
+          # 3. بناء الـ APK باستخدام الإصدار الصحيح 7.5 لتفادي خطأ النسخة 4.4.1
+          cd android
           gradle wrapper --gradle-version 7.5
-          
-          # تشغيل البناء النهائي
           gradle assembleDebug --stacktrace
 
-      # 5. رفع الملف الناتج (APK)
-      - name: Upload Finished APK
+      - name: Upload Full Game APK
         uses: actions/upload-artifact@v4
         with:
-          name: Game-Build-Completed
+          name: WarriorAscension-Full-v1
           path: "**/build/outputs/apk/debug/*.apk"
