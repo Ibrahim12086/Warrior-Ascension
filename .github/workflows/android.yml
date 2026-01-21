@@ -17,14 +17,14 @@ jobs:
       - name: Build APK
         run: |
           cd android
-          # إجبار النظام على استخدام نسخة Gradle متوافقة
-          gradle wrapper --gradle-version 8.0
-          chmod +x gradlew
-          # تنظيف ثم بناء
-          ./gradlew clean assembleDebug --stacktrace
+          # إعطاء صلاحيات للملفات
+          chmod +x gradlew || true
+          # البناء مع إظهار الأخطاء التفصيلية --info
+          ./gradlew assembleDebug --info --stacktrace
 
-      - name: Upload APK
+      - name: Upload APK on Failure (للمعاينة إذا فشل)
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Ascension-Final
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: Build-Logs
+          path: android/app/build/reports/
