@@ -1,42 +1,62 @@
-name: Build Android APK
+name: Ultimate Android Build
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch: # يسمح لك بتشغيل البناء يدوياً من موقع GitHub
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Setup Java 17 (Required for Android)
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Python 3.10 (Most Stable for Buildozer)
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10' # نستخدم 3.10 لتجنب مشكلة distutils
+        python-version: '3.10'
 
-    - name: Install dependencies
+    - name: Install All Possible Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential libffi-dev python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev
-        sudo apt-get install -y libgstreamer1.0-gstreamer-lite1.0-dev libgstreamer-plugins-base1.0-dev
-        python -m pip install --upgrade pip
-        pip install buildozer cython==0.29.33 git+https://github.com/kivy/kivy.git
+        sudo apt-get install -y build-essential libffi-dev python3-dev ffmpeg \
+        libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+        libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
+        zlib1g-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+        zip unzip autoconf libtool pkg-config cmake gettext
+        
+        # تثبيت المكاتب التي تعالج مشكلة distutils وتوافقية Python
+        python -m pip install --upgrade pip setuptools wheel
+        pip install cython==0.29.33 buildozer
 
-    - name: Build with Buildozer
+    - name: Pre-build Fixes (Self-Healing)
       run: |
-        # التأكد من قبول التراخيص أوتوماتيكياً
+        # التأكد من وجود ملف buildozer.spec أو إنشائه إذا فُقد
+        if [ ! -f buildozer.spec ]; then
+          buildozer init
+        fi
+        # محاولة إصلاح التراخيص والمجلدات أوتوماتيكياً
+        mkdir -p .buildozer
+        chmod -R 777 .
+
+    - name: Build Android APK (Full Process)
+      run: |
+        # استخدام yes للموافقة التلقائية على كل شروط أندرويد لتجنب التوقف
         yes | buildozer android debug
       env:
-        # هذه المتغيرات تساعد في تسريع البناء وتفادي بعض المشاكل
-        GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+        # إعدادات لتقليل أخطاء الذاكرة والترجمة
+        GRADLE_OPTS: "-Dorg.gradle.daemon=false -Xmx2048m"
 
-    - name: Upload APK
+    - name: Upload Finished APK
       uses: actions/upload-artifact@v4
       with:
-        name: WarriorAscension-APK
+        name: WarriorAscension-Release
         path: bin/*.apk
 
