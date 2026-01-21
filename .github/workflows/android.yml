@@ -30,13 +30,12 @@ jobs:
 
     - name: Install SDK packages (NDK, CMake, build-tools, platform)
       run: |
-        sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.2" "cmake;3.22.1" "ndk;25.2.9519653" || true
-        yes | sdkmanager --licenses || true
+        yes | sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.2" "cmake;3.22.1" --licenses
 
     - name: Install helpful apt packages
       run: |
         sudo apt-get update -y
-        sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build zip unzip git ccache python3
+        sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build zip unzip git curl
 
     - name: Make gradlew executable if present
       run: |
@@ -44,94 +43,6 @@ jobs:
           chmod +x android/gradlew
         fi
 
-    - name: Auto-build loop (tries to auto-fix & rebuild)
-      id: autobuild
+    - name: Build APK
       run: |
-        set -euo pipefail
-        cd android
-        MAX_TRIES=6
-        TRY=1
-
-        # choose build command: prefer wrapper if exists, else system gradle
-        if [ -x ./gradlew ]; then
-          BUILD_CMD="./gradlew assembleDebug --no-daemon --stacktrace"
-        else
-          echo "No gradlew found; using system 'gradle' installed on runner"
-          BUILD_CMD="gradle assembleDebug --no-daemon --stacktrace"
-        fi
-
-        echo "Using build command: $BUILD_CMD"
-
-        # helper to upload logs at end
-        LOGFILE="$GITHUB_WORKSPACE/android_build.log"
-        rm -f "$LOGFILE"
-
-        while [ $TRY -le $MAX_TRIES ]; do
-          echo "=== Build attempt $TRY / $MAX_TRIES ===" | tee -a "$LOGFILE"
-          if $BUILD_CMD 2>&1 | tee -a "$LOGFILE"; then
-            echo "BUILD_SUCCESS=true" >> $GITHUB_OUTPUT
-            echo "Build succeeded on attempt $TRY"
-            exit 0
-          else
-            echo "Build failed on attempt $TRY — parsing logs..." | tee -a "$LOGFILE"
-            tail -n 200 "$LOGFILE" | sed -n '1,200p' > last_errors.txt || true
-            # Try re-installing SDK pieces and some common fixes
-            echo "Re-running sdkmanager installs (ndk/cmake/build-tools/platforms)..." | tee -a "$LOGFILE"
-            sdkmanager --install "cmake;3.22.1" "ndk;25.2.9519653" "build-tools;33.0.2" "platforms;android-33" --sdk_root=$ANDROID_SDK_ROOT || true
-
-            echo "Attempting apt fallback installs (libssl-dev zlib1g-dev libpng-dev)..." | tee -a "$LOGFILE"
-            sudo apt-get update -y
-            sudo apt-get install -y --no-install-recommends libssl-dev zlib1g-dev libpng-dev libjpeg-dev || true
-
-            # Increase TRY and loop
-            TRY=$((TRY+1))
-            echo "Waiting a bit before retry..." | tee -a "$LOGFILE"
-            sleep 3
-          fi
-        done
-
-        echo "Reached max tries ($MAX_TRIES). Marking failure." | tee -a "$LOGFILE"
-        echo "BUILD_SUCCESS=false" >> $GITHUB_OUTPUT
-        # upload logs artifact in next step by saving to workspace
-        mv "$LOGFILE" "$GITHUB_WORKSPACE/android_build.log" || true
-        mv last_errors.txt "$GITHUB_WORKSPACE/android_last_errors.txt" || true
-        exit 1
-
-    - name: Upload APK artifact (if built)
-      if: steps.autobuild.outputs.BUILD_SUCCESS == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: warrior-ascension-apk
-        path: android/app/build/outputs/apk/debug/*.apk
-
-    - name: Upload logs on failure
-      if: steps.autobuild.outputs.BUILD_SUCCESS == 'false'
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-build-logs
-        path: |
-          android_build.log
-          android_last_errors.txt
-
-    - name: Create issue on failure with log excerpt
-      if: steps.autobuild.outputs.BUILD_SUCCESS == 'false'
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const fs = require('fs');
-          let excerpt = '';
-          try {
-            excerpt = fs.readFileSync(process.env.GITHUB_WORKSPACE + '/android_last_errors.txt', 'utf8');
-            if (excerpt.length > 8000) excerpt = excerpt.slice(-8000);
-          } catch(e) {
-            excerpt = 'No log excerpt available';
-          }
-          const title = `Auto-build failed: please check logs (commit: ${process.env.GITHUB_SHA.slice(0,7)})`;
-          const body = `The automated build tried to fix environment and failed after multiple attempts.\n\nLast log excerpt:\n\n\`\`\`\n${excerpt}\n\`\`\`\n\nArtifacts: android-build-logs (attached).`;
-          await github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: title,
-            body: body
-          });
+        ./gradlew assembleRelease
