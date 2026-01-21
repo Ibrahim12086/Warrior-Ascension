@@ -14,23 +14,18 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with Detailed Logs
+      - name: Build with Detailed Error Output
         run: |
           cd android
-          sudo apt-get update && sudo apt-get install -y gradle
+          # إنشاء الملفات الضرورية
           gradle wrapper
           chmod +x gradlew
-          # تشغيل البناء مع تسجيل كل صغيرة وكبيرة في ملف log.txt
-          ./gradlew assembleDebug --stacktrace > ../build_log.txt 2>&1 || true
+          # تشغيل البناء مع إظهار أخطاء الـ C++ بالتفصيل
+          ./gradlew assembleDebug --stacktrace --info
 
-      - name: Upload Error Log
+      - name: Upload APK if Successful
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Full-Build-Log
-          path: build_log.txt
-
-      - name: Upload APK if successful
-        uses: actions/upload-artifact@v4
-        with:
-          name: Warrior-App
+          name: Warrior-Final-Game
           path: android/app/build/outputs/apk/debug/app-debug.apk
