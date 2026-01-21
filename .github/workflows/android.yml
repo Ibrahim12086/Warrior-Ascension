@@ -1,4 +1,4 @@
-name: Warrior Ascension Ultimate Builder
+name: Warrior Ascension Master Builder
 
 on:
   push:
@@ -11,51 +11,46 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java & Android SDK
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # 1. تثبيت الـ NDK لترجمة ملفات الـ C++ (CC)
-      - name: Setup Android NDK
-        uses: n0rt3n/setup-ndk@v1
+      # تثبيت Gradle 7.5 لحل مشكلة التوافق (الصورة 1000159775)
+      - name: Setup Gradle 7.5
+        uses: gradle/actions/setup-gradle@v3
         with:
-          ndk-version: r25b
+          gradle-version: 7.5
 
-      # 2. تثبيت بايثون (لو اللعبة بتعتمد عليه في المنطق)
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      # 3. إعادة هيكلة المشروع "إجبارياً" داخل السيرفر
-      - name: Reconstruct Project Structure
+      # خطوة "تجميع الأجزاء المبعثرة" - نقل كل شيء لقلب الأندرويد
+      - name: Link Game Engine and Assets
         run: |
-          # إنشاء مجلدات أندرويد الرسمية لو مش موجودة
+          # 1. إنشاء المسارات الرسمية للأندرويد
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/cpp
-          mkdir -p android/app/src/main/res/drawable
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
 
-          # نقل الجرافيك والصوت والمستويات الـ 10
+          # 2. نقل ملفات الـ 10 مستويات والجرافيك والصوت
           cp -r Content/* android/app/src/main/assets/ || true
           
-          # نقل الأيقونة لتكون واضحة في المشروع
-          cp Content/Icons/*.png android/app/src/main/res/drawable/ || true
-
-          # نقل ملفات القتال والحركة (C++)
+          # 3. نقل كود القتال والحركة والترجمة (C++ / Python)
+          # سنضع الكود في مكان يراه الـ CMakeLists.txt
           cp -r Source/* android/app/src/main/cpp/ || true
           cp -r GameEngine/* android/app/src/main/cpp/ || true
+          
+          # 4. محاولة نقل الأيقونة لتظهر عند التثبيت
+          cp Content/Icons/*.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
 
-      # 4. بناء الـ APK باستخدام Gradle 7.5 (الحل لخطأ الصورة 1000159775)
-      - name: Build With Gradle 7.5
+      - name: Build APK (Self-Healing)
+        working-directory: ./android
         run: |
-          cd android
+          # إنشاء الـ Wrapper وبناء اللعبة
           gradle wrapper --gradle-version 7.5
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload Final Warrior APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: WarriorAscension-Full-Game
-          path: "**/build/outputs/apk/debug/*.apk"
+          name: Warrior-Ascension-Complete
+          path: "android/app/build/outputs/apk/debug/*.apk"
