@@ -1,14 +1,13 @@
 cmake_minimum_required(VERSION 3.18)
 project(WarriorAscensionNative)
 
-# المسار إلى مصدر C++ (من هذا الملف إلى جذر المشروع)
-# (android/app/src/main/cpp) -> ../../../../GameEngine/CoreLogic.cpp
+# الرجوع 5 مستويات للخلف للوصول لملف CoreLogic.cpp
 add_library(warrior SHARED
-    ../../../../GameEngine/CoreLogic.cpp
+    ../../../../../Source/CoreLogic.cpp
 )
 
-# لو عندك include headers في GameEngine folder
-target_include_directories(warrior PRIVATE ../../../../GameEngine)
+# إضافة مجلد Source للمكتبات البرمجية
+target_include_directories(warrior PRIVATE ../../../../../Source)
 
 find_library(log-lib log)
 
