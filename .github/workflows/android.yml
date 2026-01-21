@@ -14,17 +14,19 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build APK
+      - name: Force Build Without Wrapper
         run: |
           cd android
-          # إعطاء صلاحيات للملفات
-          chmod +x gradlew || true
-          # البناء مع إظهار الأخطاء التفصيلية --info
-          ./gradlew assembleDebug --info --stacktrace
+          # تثبيت Gradle داخل خادم GitHub
+          sudo apt-get update && sudo apt-get install -y gradle
+          # توليد الـ Wrapper محلياً في الخادم
+          gradle wrapper
+          chmod +x gradlew
+          # تشغيل البناء النهائي
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK on Failure (للمعاينة إذا فشل)
-        if: failure()
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Build-Logs
-          path: android/app/build/reports/
+          name: Warrior-Ascension-Final-App
+          path: android/app/build/outputs/apk/debug/app-debug.apk
