@@ -1,4 +1,4 @@
-name: Final Fixed Build
+name: Independent Automated Builder
 
 on:
   push:
@@ -8,24 +8,38 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # 1. سحب الكود المتاح
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      # 2. تجهيز البيئة (Java 17)
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Build APK
-        working-directory: ./android
+      # 3. تثبيت Gradle 7.5 يدوياً على السيرفر (لحل مشكلة النسخة 4.4.1)
+      - name: Setup Gradle 7.5
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 7.5
+
+      # 4. عملية البناء الذكية (تجميع الناقص وبناء الـ APK)
+      - name: Auto-Assemble Everything
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          # الدخول لمجلد الأندرويد
+          if [ -d "android" ]; then cd android; fi
+          
+          # إجبار السيرفر على إنشاء ملفات التشغيل الناقصة عندك
+          gradle wrapper --gradle-version 7.5
+          
+          # تشغيل البناء النهائي
+          gradle assembleDebug --stacktrace
 
-      - name: Upload APK
+      # 5. رفع الملف الناتج (APK)
+      - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
-          name: WarriorAscension-Game
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: Game-Build-Completed
+          path: "**/build/outputs/apk/debug/*.apk"
