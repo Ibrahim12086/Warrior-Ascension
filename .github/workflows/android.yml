@@ -17,12 +17,11 @@ jobs:
       - name: Build APK
         run: |
           cd android
-          # إذا لم يجد gradlew سيقوم بإنشائه فوراً
-          if [ ! -f gradlew ]; then
-            gradle wrapper
-          fi
+          # إجبار النظام على استخدام نسخة Gradle متوافقة
+          gradle wrapper --gradle-version 8.0
           chmod +x gradlew
-          ./gradlew assembleDebug
+          # تنظيف ثم بناء
+          ./gradlew clean assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
