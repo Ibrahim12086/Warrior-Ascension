@@ -1,0 +1,23 @@
+<manifest package="com.warrior.ascension"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:label="Warrior Ascension"
+        android:hasCode="false">
+
+        <activity
+            android:name="android.app.NativeActivity"
+            android:label="Warrior Ascension"
+            android:exported="true"
+            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize">
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="warrior"/>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>

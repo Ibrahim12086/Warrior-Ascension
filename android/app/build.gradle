@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "com.warrior.ascension"
+        minSdk 21
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17 -O2"
+            }
+        }
+    }
+
+    buildTypes {
+        debug {}
+        release {
+            minifyEnabled false
+            debuggable false
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+
+    // استخدم NDK نسخة متوافقة (سيتم تثبيتها في workflow)
+    ndkVersion "25.2.9519653"
+
+    sourceSets {
+        main {
+            // اجعل مجلد Content في جذر الريبو يظهر كـ assets داخل الـ APK
+            assets.srcDirs = ['../../Content']
+        }
+    }
+}
+
+dependencies {
+    // لا اعتمادات Java إضافية لازمة للمشروع NativeActivity
+}
