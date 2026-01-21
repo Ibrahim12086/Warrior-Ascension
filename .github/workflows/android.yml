@@ -1,54 +1,42 @@
-name: Robust NDK/CMake APK build
+name: Build Android APK
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_SDK_ROOT: ${{ runner.home }}/android-sdk
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        fetch-depth: 0
+        python-version: '3.10' # نستخدم 3.10 لتجنب مشكلة distutils
 
-    - name: Setup JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: 17
-
-    - name: Setup Android SDK (cmdline-tools)
-      uses: android-actions/setup-android@v3
-      with:
-        api-level: 33
-
-    - name: Install SDK packages (NDK, CMake, build-tools, platform)
+    - name: Install dependencies
       run: |
-        yes | sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.2" "cmake;3.22.1" --licenses
+        sudo apt-get update
+        sudo apt-get install -y build-essential libffi-dev python3-dev ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev
+        sudo apt-get install -y libgstreamer1.0-gstreamer-lite1.0-dev libgstreamer-plugins-base1.0-dev
+        python -m pip install --upgrade pip
+        pip install buildozer cython==0.29.33 git+https://github.com/kivy/kivy.git
 
-    - name: Install necessary build packages
+    - name: Build with Buildozer
       run: |
-        sudo apt-get update -y
-        sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build zip unzip git curl
+        # التأكد من قبول التراخيص أوتوماتيكياً
+        yes | buildozer android debug
+      env:
+        # هذه المتغيرات تساعد في تسريع البناء وتفادي بعض المشاكل
+        GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
-    - name: Make gradlew executable
-      run: |
-        if [ -f android/gradlew ]; then
-          chmod +x android/gradlew
-        fi
-
-    - name: Build APK
-      run: |
-        ./gradlew assembleRelease
-
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v3
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
       with:
         name: WarriorAscension-APK
-        path: android/app/build/outputs/apk/release/app-release.apk
+        path: bin/*.apk
+
