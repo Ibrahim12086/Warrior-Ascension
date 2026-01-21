@@ -1,62 +1,42 @@
-name: Ultimate Android Build
+name: Android Native Build (C++)
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # يسمح لك بتشغيل البناء يدوياً من موقع GitHub
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup Java 17 (Required for Android)
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: gradle
 
-    - name: Setup Python 3.10 (Most Stable for Buildozer)
-      uses: actions/setup-python@v4
+    - name: Setup Android NDK
+      uses: android-actions/setup-android@v3
       with:
-        python-version: '3.10'
+        ndk-version: '25.2.9519653' # إصدار مستقر لترجمة C++
 
-    - name: Install All Possible Dependencies
+    - name: Build with Gradle
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential libffi-dev python3-dev ffmpeg \
-        libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-        libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
-        zlib1g-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-        zip unzip autoconf libtool pkg-config cmake gettext
-        
-        # تثبيت المكاتب التي تعالج مشكلة distutils وتوافقية Python
-        python -m pip install --upgrade pip setuptools wheel
-        pip install cython==0.29.33 buildozer
-
-    - name: Pre-build Fixes (Self-Healing)
-      run: |
-        # التأكد من وجود ملف buildozer.spec أو إنشائه إذا فُقد
-        if [ ! -f buildozer.spec ]; then
-          buildozer init
-        fi
-        # محاولة إصلاح التراخيص والمجلدات أوتوماتيكياً
-        mkdir -p .buildozer
-        chmod -R 777 .
-
-    - name: Build Android APK (Full Process)
-      run: |
-        # استخدام yes للموافقة التلقائية على كل شروط أندرويد لتجنب التوقف
-        yes | buildozer android debug
+        cd android
+        # تحويل ملفات الـ Gradle لتكون قابلة للتنفيذ
+        chmod +x build.gradle
+        # البدء في البناء (Debug APK)
+        ./gradlew assembleDebug || gradle assembleDebug
       env:
-        # إعدادات لتقليل أخطاء الذاكرة والترجمة
-        GRADLE_OPTS: "-Dorg.gradle.daemon=false -Xmx2048m"
+        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
-    - name: Upload Finished APK
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: WarriorAscension-Release
-        path: bin/*.apk
+        name: WarriorAscension-Native-APK
+        path: android/app/build/outputs/apk/debug/*.apk
 
