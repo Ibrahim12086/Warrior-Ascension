@@ -1,4 +1,4 @@
-name: Android Native Build (C++)
+name: Ultimate Android Native Build
 
 on:
   push:
@@ -17,26 +17,32 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
+
+    - name: Install Gradle & Setup Wrapper
+      run: |
+        # تثبيت gradle على السيرفر فوراً
+        sudo apt-get update
+        sudo apt-get install -y gradle
+        cd android
+        # توليد الملفات المفقودة (gradlew) أوتوماتيكياً
+        gradle wrapper
+        chmod +x gradlew
 
     - name: Setup Android NDK
       uses: android-actions/setup-android@v3
       with:
-        ndk-version: '25.2.9519653' # إصدار مستقر لترجمة C++
+        ndk-version: '25.2.9519653'
 
-    - name: Build with Gradle
+    - name: Build APK with Gradle
       run: |
         cd android
-        # تحويل ملفات الـ Gradle لتكون قابلة للتنفيذ
-        chmod +x build.gradle
-        # البدء في البناء (Debug APK)
-        ./gradlew assembleDebug || gradle assembleDebug
+        ./gradlew assembleDebug
       env:
-        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/25.2.9519653
 
-    - name: Upload APK
+    - name: Upload Finished APK
       uses: actions/upload-artifact@v4
       with:
-        name: WarriorAscension-Native-APK
+        name: WarriorAscension-Final-APK
         path: android/app/build/outputs/apk/debug/*.apk
 
