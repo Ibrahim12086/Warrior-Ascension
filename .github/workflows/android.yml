@@ -1,7 +1,5 @@
 name: Android CI
-on:
-  push:
-    branches: [ "main" ]
+on: [push]
 
 jobs:
   build:
@@ -18,11 +16,14 @@ jobs:
 
       - name: Build APK
         run: |
-          chmod +x android/gradlew
-          cd android && ./gradlew assembleDebug
+          # البحث عن ملف gradlew وتشغيله أينما وجد
+          GRADLEW_PATH=$(find . -name gradlew)
+          chmod +x $GRADLEW_PATH
+          cd $(dirname $GRADLEW_PATH)
+          ./gradlew assembleDebug
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WarriorAscension-Game
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: Warrior-Ascension-Full-App
+          path: "**/*.apk"
