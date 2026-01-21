@@ -12,7 +12,7 @@ jobs:
       ANDROID_SDK_ROOT: ${{ runner.home }}/android-sdk
 
     steps:
-    - name: Checkout
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
@@ -32,12 +32,12 @@ jobs:
       run: |
         yes | sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.2" "cmake;3.22.1" --licenses
 
-    - name: Install helpful apt packages
+    - name: Install necessary build packages
       run: |
         sudo apt-get update -y
         sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build zip unzip git curl
 
-    - name: Make gradlew executable if present
+    - name: Make gradlew executable
       run: |
         if [ -f android/gradlew ]; then
           chmod +x android/gradlew
@@ -46,3 +46,9 @@ jobs:
     - name: Build APK
       run: |
         ./gradlew assembleRelease
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: WarriorAscension-APK
+        path: android/app/build/outputs/apk/release/app-release.apk
