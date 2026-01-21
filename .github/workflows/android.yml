@@ -1,4 +1,4 @@
-name: Full Game Master Builder
+name: Warrior Ascension Ultimate Builder
 
 on:
   push:
@@ -11,37 +11,51 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Java & Android SDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle 7.5
-        uses: gradle/actions/setup-gradle@v3
+      # 1. تثبيت الـ NDK لترجمة ملفات الـ C++ (CC)
+      - name: Setup Android NDK
+        uses: n0rt3n/setup-ndk@v1
         with:
-          gradle-version: 7.5
+          ndk-version: r25b
 
-      - name: Assemble Game Components
+      # 2. تثبيت بايثون (لو اللعبة بتعتمد عليه في المنطق)
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # 3. إعادة هيكلة المشروع "إجبارياً" داخل السيرفر
+      - name: Reconstruct Project Structure
         run: |
-          # 1. تجهيز مجلدات الأصول (Assets) لضمان ظهور الجرافيك والأصوات
+          # إنشاء مجلدات أندرويد الرسمية لو مش موجودة
           mkdir -p android/app/src/main/assets
+          mkdir -p android/app/src/main/cpp
+          mkdir -p android/app/src/main/res/drawable
+
+          # نقل الجرافيك والصوت والمستويات الـ 10
           cp -r Content/* android/app/src/main/assets/ || true
+          
+          # نقل الأيقونة لتكون واضحة في المشروع
+          cp Content/Icons/*.png android/app/src/main/res/drawable/ || true
 
-          # 2. ربط كود المحرك والقتال (C++) بمجلد البناء الرسمي
-          # هذا يضمن أن "CoreLogic.cpp" سيتم دمجه في اللعبة
-          mkdir -p android/app/src/main/cpp/Source
-          mkdir -p android/app/src/main/cpp/GameEngine
-          cp -r Source/* android/app/src/main/cpp/Source/ || true
-          cp -r GameEngine/* android/app/src/main/cpp/GameEngine/ || true
+          # نقل ملفات القتال والحركة (C++)
+          cp -r Source/* android/app/src/main/cpp/ || true
+          cp -r GameEngine/* android/app/src/main/cpp/ || true
 
-          # 3. بناء الـ APK باستخدام الإصدار الصحيح 7.5 لتفادي خطأ النسخة 4.4.1
+      # 4. بناء الـ APK باستخدام Gradle 7.5 (الحل لخطأ الصورة 1000159775)
+      - name: Build With Gradle 7.5
+        run: |
           cd android
           gradle wrapper --gradle-version 7.5
-          gradle assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Upload Full Game APK
+      - name: Upload Final Warrior APK
         uses: actions/upload-artifact@v4
         with:
-          name: WarriorAscension-Full-v1
+          name: WarriorAscension-Full-Game
           path: "**/build/outputs/apk/debug/*.apk"
