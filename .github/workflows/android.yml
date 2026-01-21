@@ -1,4 +1,4 @@
-name: Ultimate Smart Auto-Builder
+name: Warrior Ascension Pro Builder
 
 on:
   push:
@@ -22,42 +22,41 @@ jobs:
         with:
           gradle-version: 7.5
 
-      # خطوة "البحث والدمج الذكي"
-      - name: Search and Merge All Missing Files
+      # خطوة "المحول الذكي" - تجهيز الهيكل وربط الأكواد
+      - name: Smart Project Converter
         run: |
-          # 1. إنشاء الهيكل الصحيح للأندرويد
+          # 1. تنظيف وتجهيز المسارات الرسمية
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/cpp
-          mkdir -p android/app/src/main/res/mipmap-hdpi
-          mkdir -p android/app/src/main/res/drawable
+          mkdir -p android/app/src/main/res/mipmap-xxhdpi
 
-          # 2. البحث عن ملفات المحتوى (Content) ودمجها
-          echo "Searching for Content..."
-          find . -name "Content" -type d -exec cp -r {}/* android/app/src/main/assets/ \; || true
+          # 2. تحويل ونقل الأصول (الجرافيك والصوت والمستويات)
+          cp -r Content/* android/app/src/main/assets/ || true
 
-          # 3. البحث عن ملفات البرمجة (Source & GameEngine) ودمجها للترجمة
-          echo "Searching for Source and Logic..."
-          find . -name "Source" -type d -exec cp -r {}/* android/app/src/main/cpp/ \; || true
-          find . -name "GameEngine" -type d -exec cp -r {}/* android/app/src/main/cpp/ \; || true
+          # 3. دمج كود الـ C++ (CC) والترجمة
+          # وضع الملفات في مسار يراه مترجم الأندرويد (NDK)
+          cp -r Source/* android/app/src/main/cpp/ || true
+          cp -r GameEngine/* android/app/src/main/cpp/ || true
 
-          # 4. البحث عن الأيقونات ووضعها في مكانها لإظهارها على الموبايل
-          echo "Searching for Icons..."
-          find . -name "*.png" -path "*/Icons/*" -exec cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png \; || true
-          find . -name "*.png" -path "*/Icons/*" -exec cp {} android/app/src/main/res/drawable/icon.png \; || true
+          # 4. إجبار النظام على رؤية الأيقونة
+          # يبحث عن أي ملف أيقونة ويجعله الأيقونة الرسمية للتطبيق
+          find Content/Icons -name "*.png" -exec cp {} android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png \; || true
+          find Content/Icons -name "*.png" -exec cp {} android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png \; || true
 
-          # 5. دمج ملفات البايثون لو موجودة
-          echo "Searching for Python scripts..."
-          find . -name "*.py" -exec cp {} android/app/src/main/assets/ \; || true
+          # 5. تحديث ملف الإعدادات (Manifest) لربط الأيقونة برمجياً
+          # هذا السطر يحل مشكلة اختفاء الأيقونة في الصورة [1000159788.jpg]
+          sed -i 's/android:icon="[^"]*"/android:icon="@mipmap\/ic_launcher"/' android/app/src/main/AndroidManifest.xml || true
+          sed -i 's/android:roundIcon="[^"]*"/android:roundIcon="@mipmap\/ic_launcher_round"/' android/app/src/main/AndroidManifest.xml || true
 
-      - name: Final Build
+      - name: Build and Link Native Code
         working-directory: ./android
         run: |
-          # إصلاح مشكلة النسخة 4.4.1 (الصورة 1000159775)
+          # إصلاح مشكلة النسخة القديمة 4.4.1 الظاهرة في الصورة [1000159775.jpg]
           gradle wrapper --gradle-version 7.5
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload Complete APK
+      - name: Upload Final Warrior APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Ascension-Final-Build
+          name: WarriorAscension-V2-70MB
           path: "android/app/build/outputs/apk/debug/*.apk"
