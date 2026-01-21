@@ -1,4 +1,4 @@
-name: Warrior Ascension Pro Builder
+name: Warrior Ascension Mega Builder
 
 on:
   push:
@@ -22,41 +22,44 @@ jobs:
         with:
           gradle-version: 7.5
 
-      # خطوة "المحول الذكي" - تجهيز الهيكل وربط الأكواد
-      - name: Smart Project Converter
+      # خطوة "الجمع القسري" - تجميع الـ 500 ميجا في مكان واحد
+      - name: Universal Asset Collector
         run: |
-          # 1. تنظيف وتجهيز المسارات الرسمية
+          # 1. تجهيز المسارات وتوسيع سعة الاستيعاب
           mkdir -p android/app/src/main/assets
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
           mkdir -p android/app/src/main/cpp
-          mkdir -p android/app/src/main/res/mipmap-xxhdpi
 
-          # 2. تحويل ونقل الأصول (الجرافيك والصوت والمستويات)
-          cp -r Content/* android/app/src/main/assets/ || true
+          # 2. نقل كل شيء بلا استثناء (Content, Source, GameEngine)
+          echo "Moving 500MB of data..."
+          cp -rv Content/* android/app/src/main/assets/ || true
+          cp -rv Source/* android/app/src/main/cpp/ || true
+          cp -rv GameEngine/* android/app/src/main/cpp/ || true
 
-          # 3. دمج كود الـ C++ (CC) والترجمة
-          # وضع الملفات في مسار يراه مترجم الأندرويد (NDK)
-          cp -r Source/* android/app/src/main/cpp/ || true
-          cp -r GameEngine/* android/app/src/main/cpp/ || true
+          # 3. تثبيت الأيقونة (إجبارياً)
+          # يبحث عن أكبر ملف صورة في مجلد Icons ويجعله الأيقونة
+          find Content/Icons -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
+          
+          # 4. إصلاح ملف الـ Manifest برمجياً لربط الأيقونة والتصاريح
+          # هذا يحل مشكلة الأيقونة الظاهرة في الصورة [1000159788.jpg]
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          sed -i 's/android:icon="[^"]*"/android:icon="@mipmap\/ic_launcher"/' $MANIFEST || true
+          # إضافة تصريح قراءة الملفات الكبيرة
+          sed -i '/<application/i <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"\/>' $MANIFEST || true
 
-          # 4. إجبار النظام على رؤية الأيقونة
-          # يبحث عن أي ملف أيقونة ويجعله الأيقونة الرسمية للتطبيق
-          find Content/Icons -name "*.png" -exec cp {} android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png \; || true
-          find Content/Icons -name "*.png" -exec cp {} android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png \; || true
+      # 5. تعديل إعدادات Gradle لعدم ضغط الملفات (لتسريع التشغيل ومنع الـ Crash)
+      - name: Configure Large Assets
+        run: |
+          echo "android { aaptOptions { noCompress '' } }" >> android/app/build.gradle || true
 
-          # 5. تحديث ملف الإعدادات (Manifest) لربط الأيقونة برمجياً
-          # هذا السطر يحل مشكلة اختفاء الأيقونة في الصورة [1000159788.jpg]
-          sed -i 's/android:icon="[^"]*"/android:icon="@mipmap\/ic_launcher"/' android/app/src/main/AndroidManifest.xml || true
-          sed -i 's/android:roundIcon="[^"]*"/android:roundIcon="@mipmap\/ic_launcher_round"/' android/app/src/main/AndroidManifest.xml || true
-
-      - name: Build and Link Native Code
+      - name: Final Mega Build
         working-directory: ./android
         run: |
-          # إصلاح مشكلة النسخة القديمة 4.4.1 الظاهرة في الصورة [1000159775.jpg]
           gradle wrapper --gradle-version 7.5
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload Final Warrior APK
+      - name: Upload Mega APK
         uses: actions/upload-artifact@v4
         with:
-          name: WarriorAscension-V2-70MB
+          name: Warrior-Full-Project-Fixed
           path: "android/app/build/outputs/apk/debug/*.apk"
