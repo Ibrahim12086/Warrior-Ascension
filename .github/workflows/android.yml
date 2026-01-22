@@ -1,4 +1,4 @@
-name: Warrior Ascension Clean Reset
+name: Warrior Ascension Nuclear Fix
 
 on:
   push:
@@ -17,17 +17,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 1. مسح شامل لكل ملفات أندرويد القديمة والـ Cache
-      - name: Global Cleanup
+      # 1. تنظيف شامل لكل ملفات الإعدادات القديمة (عشان نخلص من كلمة module)
+      - name: Deep Clean
         run: |
           rm -rf android
           rm -rf .gradle
-          mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/java/com/ibrahim/warrior
+          mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/res/mipmap-hdpi
 
-      # 2. إنشاء إعدادات "مختصرة جداً" عشان مديش فرصة لـ Gradle يغلط
-      - name: Create Minimal Config
+      # 2. إنشاء إعدادات جديدة 100% متوافقة مع Gradle 9
+      - name: Fresh Gradle Config
         run: |
           echo "include ':app'" > android/settings.gradle
           
@@ -55,24 +55,25 @@ jobs:
               }
           }
           dependencies {
-              // لا تضع أي مكتبات هنا حالياً لضمان نجاح البناء الأول
-              implementation "androidx.appcompat:appcompat:1.6.1"
+              // كتابة التبعيات بأبسط شكل ممكن لمنع التعارض
+              implementation 'androidx.appcompat:appcompat:1.6.1'
           }
           GRADLE_APP
 
-      # 3. نقل ملفاتك (التي تظهر في صورك)
-      - name: Inject Game Data
+      # 3. نقل ملفاتك البرمجية والجرافيك
+      - name: Link Your Game Files
         run: |
           cp -r Content/* android/app/src/main/assets/ || true
           cp -r Source/* android/app/src/main/cpp/ || true
           cp -r GameEngine/* android/app/src/main/cpp/ || true
-          # وضع أيقونة اللعبة لتجنب الشكل الافتراضي
+          # وضع الأيقونة
           find . -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
 
-      # 4. إصلاح المانيفست (عشان اللعبة تفتح وما تقفلش)
-      - name: Setup Entry Point
+      # 4. منع الـ Crash اللي شفناه في صور الموبايل
+      - name: Fix Activity Launch
         run: |
-          echo "package com.ibrahim.warrior; import android.app.Activity; public class MainActivity extends Activity {}" > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
+          echo "package com.ibrahim.warrior; import android.app.Activity; import android.os.Bundle; public class MainActivity extends Activity { protected void onCreate(Bundle s) { super.onCreate(s); } }" > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
+          
           cat <<MANIFEST > android/app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.ibrahim.warrior">
               <application android:label="Warrior" android:icon="@mipmap/ic_launcher">
@@ -86,16 +87,16 @@ jobs:
           </manifest>
           MANIFEST
 
-      # 5. البناء بدون استخدام Wrapper قديم
-      - name: Force Build
+      # 5. البناء بقوة السيرفر (Force Build)
+      - name: Execute Build
         working-directory: ./android
         run: |
           gradle wrapper --gradle-version 8.0
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload
+      - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Final-APK
+          name: Warrior-Fixed-APK
           path: "android/app/build/outputs/apk/debug/*.apk"
