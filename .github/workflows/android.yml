@@ -1,4 +1,4 @@
-name: Rescue Build
+name: Final Compatible Build
 on: [push]
 
 jobs:
@@ -14,22 +14,20 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with MAX Memory
+      - name: Build with Matching Versions
         run: |
-          # تحميل جرادل 8.2 يدوياً (نسخة خفيفة ومستقرة)
+          # تحميل Gradle 8.2 يدوياً (المتوافق مع الإعدادات التي كتبناها)
           wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
           unzip -q gradle-8.2-bin.zip
           export PATH=$PWD/gradle-8.2/bin:$PATH
           
           cd android
-          # تنظيف
+          # تنظيف كامل وبناء
           rm -rf .gradle build app/build
-          
-          # الأمر النهائي: عدم استخدام Daemon لتوفير الرام + 6 جيجا ذاكرة
-          gradle assembleDebug --no-daemon -Dorg.gradle.jvmargs="-Xmx6g -XX:MaxMetaspaceSize=1g" --stacktrace
+          gradle assembleDebug --no-daemon --stacktrace --info
           
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Ascension-Rescue-App
+          name: Warrior-Ascension-Final
           path: android/app/build/outputs/apk/debug/app-debug.apk

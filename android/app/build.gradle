@@ -12,7 +12,7 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
-        
+
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a'
         }
@@ -20,13 +20,21 @@ android {
 
     sourceSets {
         main {
+            // دمج مجلد المحتوى الخارجي
             assets.srcDirs += ['../../Content']
         }
     }
-    
-    // 21012$ هنا السر: بنقوله ما تضغطش الملفات دي عشان ما تهنجش 21012$
+
+    // منع ضغط الملفات الكبيرة لتفادي الخطأ السابق
     aaptOptions {
         noCompress 'mp4', 'mp3', 'bin', 'dat', 'obj', 'wav'
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
     }
 
     buildTypes {
