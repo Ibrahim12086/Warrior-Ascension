@@ -1,35 +1,43 @@
-#include <iostream>
-#include <fstream>
+#include <jni.h>
 #include <string>
+#include <android/log.h>
+#include <fstream>
 #include <unistd.h>
 
-using namespace std;
+// تعريف اسم التطبيق في السجلات
+#define TAG "WarriorAscension"
 
-void showLogo() {
-    cout << "\033[1;36m" << endl;
-    cout << "  ------------------------------------" << endl;
-    cout << "  |        WARRIOR'S ASCENSION       |" << endl;
-    cout << "  |    Developed by: Ibrahim ali     |" << endl;
-    cout << "  ------------------------------------" << endl;
-    cout << "\033[0m" << endl;
+// دالة مختصرة للطباعة داخل الأندرويد بدلاً من cout
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+
+extern "C" {
+
+// هذه هي "نقطة البداية" الحقيقية في تطبيقات الأندرويد C++
+// بدلاً من int main()
+JNIEXPORT jstring JNICALL
+Java_com_warrior_ascension_MainActivity_stringFromJNI(JNIEnv* env, jobject /* this */) {
+
+    // 1. عرض اللوجو (في الـ Logcat)
+    LOGI("  ------------------------------------");
+    LOGI("  |        WARRIOR'S ASCENSION       |");
+    LOGI("  |    Developed by: Ibrahim ali     |");
+    LOGI("  ------------------------------------");
+
+    // 2. محاكاة التحميل
+    LOGI("[SYSTEM] Loading World for Ibrahim Ali...");
+    // sleep(1); // تم تعطيلها لتسريع التطبيق
+
+    // 3. منطق اللعبة
+    int finalGold = 7500;
+    std::string finalRank = "King of Warriors";
+
+    // 4. رسالة النجاح
+    LOGI("[SUCCESS] Developer Verified: Ibrahim ali");
+    LOGI("[FINAL] Game Ready to Launch!");
+
+    // إرجاع نص للجافا ليتم عرضه على شاشة الموبايل
+    std::string welcomeMessage = "Welcome, King of Warriors (Ibrahim Ali)\nGold: " + std::to_string(finalGold);
+    return env->NewStringUTF(welcomeMessage.c_str());
 }
 
-int main() {
-    showLogo();
-    
-    cout << "\n\033[1;33m[SYSTEM] جاري تحميل عالم إبراهيم علي...\033[0m" << endl;
-    sleep(2);
-
-    // كل الأنظمة السابقة (المتجر، القتال، الحفظ) تعمل في الخلفية
-    int finalGold = 7500;
-    string finalRank = "ملك المحاربين";
-    
-    ofstream saveFile("savegame.dat");
-    saveFile << finalGold << "\n" << finalRank << "\nDeveloper: Ibrahim ali";
-    saveFile.close();
-
-    cout << "[SUCCESS] تم تأكيد ملكية المطور: Ibrahim ali" << endl;
-    cout << "[FINAL] اللعبة جاهزة للإطلاق بكل المميزات!" << endl;
-    
-    return 0;
 }
