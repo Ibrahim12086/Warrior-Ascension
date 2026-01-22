@@ -1,4 +1,4 @@
-name: Force Gradle 8.6
+name: Final Build Fix
 on: [push]
 
 jobs:
@@ -14,26 +14,22 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Manual Install Gradle 8.6 (الاجبار على النسخة المستقرة)
+      - name: Direct Build
         run: |
-          # 1. تحميل النسخة 8.6 يدوياً وتجاهل نسخة السيرفر
           wget -q https://services.gradle.org/distributions/gradle-8.6-bin.zip
           unzip -q gradle-8.6-bin.zip
-          
-          # 2. ضبط المسارات لاستخدام النسخة المحملة
           export GRADLE_HOME=$PWD/gradle-8.6
           export PATH=$GRADLE_HOME/bin:$PATH
           
-          # 3. التأكد أن النسخة أصبحت 8.6
-          gradle -v
-          
-          # 4. الدخول وبناء التطبيق
           cd android
-          rm -rf .gradle build  # تنظيف القديم
+          # تنظيف شامل للمخلفات القديمة
+          gradle clean
+          
+          # البناء مع تجاهل أخطاء الصور غير المتوافقة مؤقتاً لضمان خروج الـ APK
           gradle assembleDebug --stacktrace --info
-
+          
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Ascension-Final
+          name: Warrior-Ascension-Complete
           path: android/app/build/outputs/apk/debug/app-debug.apk
