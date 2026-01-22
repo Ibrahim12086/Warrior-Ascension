@@ -1,4 +1,4 @@
-name: Warrior Ascension Mega Builder
+name: Warrior Ascension Engine Rebuilder
 
 on:
   push:
@@ -22,44 +22,50 @@ jobs:
         with:
           gradle-version: 7.5
 
-      # خطوة "الجمع القسري" - تجميع الـ 500 ميجا في مكان واحد
-      - name: Universal Asset Collector
+      # خطوة "القلب المفتوح": إعادة كتابة ملفات النظام لربط الكود
+      - name: Reconstruct Build System
         run: |
-          # 1. تجهيز المسارات وتوسيع سعة الاستيعاب
+          # 1. تجهيز المجلدات
           mkdir -p android/app/src/main/assets
-          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
           mkdir -p android/app/src/main/cpp
+          mkdir -p android/app/src/main/res/mipmap-xxxhdpi
 
-          # 2. نقل كل شيء بلا استثناء (Content, Source, GameEngine)
-          echo "Moving 500MB of data..."
-          cp -rv Content/* android/app/src/main/assets/ || true
-          cp -rv Source/* android/app/src/main/cpp/ || true
-          cp -rv GameEngine/* android/app/src/main/cpp/ || true
+          # 2. نقل ملفات اللعبة (Assets)
+          cp -r Content/* android/app/src/main/assets/ || true
 
-          # 3. تثبيت الأيقونة (إجبارياً)
-          # يبحث عن أكبر ملف صورة في مجلد Icons ويجعله الأيقونة
+          # 3. تجميع كل كود C++ في مكان واحد
+          cp -r Source/* android/app/src/main/cpp/ || true
+          cp -r GameEngine/* android/app/src/main/cpp/ || true
+
+          # 4. (مهم جداً) إنشاء ملف CMakeLists.txt جديد يجمع كل ملفات الـ CPP تلقائياً
+          # هذا يحل مشكلة "الخروج المفاجئ" لأن النظام سيتعرف أخيراً على الكود
+          echo "cmake_minimum_required(VERSION 3.10.2)" > android/app/src/main/cpp/CMakeLists.txt
+          echo "project(\"warrior_game\")" >> android/app/src/main/cpp/CMakeLists.txt
+          echo "file(GLOB_RECURSE SRC_FILES *.cpp *.c)" >> android/app/src/main/cpp/CMakeLists.txt
+          echo "add_library(warrior_lib SHARED ${SRC_FILES})" >> android/app/src/main/cpp/CMakeLists.txt
+          echo "find_library(log-lib log)" >> android/app/src/main/cpp/CMakeLists.txt
+          echo "target_link_libraries(warrior_lib ${log-lib} android EGL GLESv2 OpenSLES)" >> android/app/src/main/cpp/CMakeLists.txt
+
+          # 5. تثبيت الأيقونة بشكل صحيح
           find Content/Icons -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
           
-          # 4. إصلاح ملف الـ Manifest برمجياً لربط الأيقونة والتصاريح
-          # هذا يحل مشكلة الأيقونة الظاهرة في الصورة [1000159788.jpg]
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          sed -i 's/android:icon="[^"]*"/android:icon="@mipmap\/ic_launcher"/' $MANIFEST || true
-          # إضافة تصريح قراءة الملفات الكبيرة
-          sed -i '/<application/i <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"\/>' $MANIFEST || true
+          # 6. تحديث المانيفست ليعرف مكتبة C++ والأيقونة
+          sed -i 's/android:icon="[^"]*"/android:icon="@mipmap\/ic_launcher"/' android/app/src/main/AndroidManifest.xml || true
+          
+          # 7. تحديث Build.gradle لربط ملف الـ CMake الجديد
+          # يتم إضافة كود الربط إذا لم يكن موجوداً
+          if ! grep -q "externalNativeBuild" android/app/build.gradle; then
+            sed -i '/android {/a \    externalNativeBuild {\n        cmake {\n            path "src/main/cpp/CMakeLists.txt"\n        }\n    }' android/app/build.gradle
+          fi
 
-      # 5. تعديل إعدادات Gradle لعدم ضغط الملفات (لتسريع التشغيل ومنع الـ Crash)
-      - name: Configure Large Assets
-        run: |
-          echo "android { aaptOptions { noCompress '' } }" >> android/app/build.gradle || true
-
-      - name: Final Mega Build
+      - name: Build Fixed APK
         working-directory: ./android
         run: |
           gradle wrapper --gradle-version 7.5
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload Mega APK
+      - name: Upload Working APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Full-Project-Fixed
+          name: Warrior-Fixed-Engine
           path: "android/app/build/outputs/apk/debug/*.apk"
