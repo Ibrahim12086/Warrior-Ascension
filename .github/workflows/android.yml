@@ -1,102 +1,47 @@
-name: Warrior Ascension Nuclear Fix
-
-on:
-  push:
-    branches: [ "main" ]
-
+name: Final Fix
+on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {java-version: '17', distribution: 'temurin'}
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      # 1. تنظيف شامل لكل ملفات الإعدادات القديمة (عشان نخلص من كلمة module)
-      - name: Deep Clean
+      - name: Reset And Build
         run: |
-          rm -rf android
-          rm -rf .gradle
+          # 1. مسح كل ملفات الإعدادات القديمة اللي بتسبب الخطأ
+          rm -rf android .gradle
+          
+          # 2. بناء هيكل جديد تماماً
           mkdir -p android/app/src/main/java/com/ibrahim/warrior
           mkdir -p android/app/src/main/assets
-          mkdir -p android/app/src/main/res/mipmap-hdpi
-
-      # 2. إنشاء إعدادات جديدة 100% متوافقة مع Gradle 9
-      - name: Fresh Gradle Config
-        run: |
-          echo "include ':app'" > android/settings.gradle
           
-          cat <<GRADLE_ROOT > android/build.gradle
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
-          }
-          allprojects {
-              repositories { google(); mavenCentral() }
-          }
-          GRADLE_ROOT
-
-          cat <<GRADLE_APP > android/app/build.gradle
+          # 3. ملفات بناء "نظيفة" متوافقة مع Gradle 9
+          echo "include ':app'" > android/settings.gradle
+          echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.1.0' } }" > android/build.gradle
+          echo "allprojects { repositories { google(); mavenCentral() } }" >> android/build.gradle
+          
+          cat <<APP > android/app/build.gradle
           plugins { id 'com.android.application' }
           android {
               namespace 'com.ibrahim.warrior'
               compileSdk 33
-              defaultConfig {
-                  applicationId "com.ibrahim.warrior"
-                  minSdk 24
-                  targetSdk 33
-                  versionCode 1
-                  versionName "1.0"
-              }
+              defaultConfig { applicationId "com.ibrahim.warrior"; minSdk 24; targetSdk 33 }
           }
-          dependencies {
-              // كتابة التبعيات بأبسط شكل ممكن لمنع التعارض
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-          }
-          GRADLE_APP
+          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+          APP
 
-      # 3. نقل ملفاتك البرمجية والجرافيك
-      - name: Link Your Game Files
-        run: |
+          # 4. نقل ملفاتك وحل مشكلة الخروج (Crash)
           cp -r Content/* android/app/src/main/assets/ || true
-          cp -r Source/* android/app/src/main/cpp/ || true
-          cp -r GameEngine/* android/app/src/main/cpp/ || true
-          # وضع الأيقونة
-          find . -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
+          echo "package com.ibrahim.warrior; import android.app.Activity; public class MainActivity extends Activity {}" > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
+          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.ibrahim.warrior"><application><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > android/app/src/main/AndroidManifest.xml
 
-      # 4. منع الـ Crash اللي شفناه في صور الموبايل
-      - name: Fix Activity Launch
-        run: |
-          echo "package com.ibrahim.warrior; import android.app.Activity; import android.os.Bundle; public class MainActivity extends Activity { protected void onCreate(Bundle s) { super.onCreate(s); } }" > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
-          
-          cat <<MANIFEST > android/app/src/main/AndroidManifest.xml
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.ibrahim.warrior">
-              <application android:label="Warrior" android:icon="@mipmap/ic_launcher">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          MANIFEST
-
-      # 5. البناء بقوة السيرفر (Force Build)
-      - name: Execute Build
-        working-directory: ./android
-        run: |
+          # 5. البناء النهائي
+          cd android
           gradle wrapper --gradle-version 8.0
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload Finished APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Warrior-Fixed-APK
-          path: "android/app/build/outputs/apk/debug/*.apk"
+      - uses: actions/upload-artifact@v4
+        with: {name: Warrior-Fixed, path: "android/app/build/outputs/apk/debug/*.apk"}
