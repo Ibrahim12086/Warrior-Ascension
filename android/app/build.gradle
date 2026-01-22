@@ -3,27 +3,33 @@ plugins {
 }
 
 android {
-    compileSdk 33
-
+    namespace 'com.warrior.ascension'
+    compileSdk 34
+    
     defaultConfig {
         applicationId "com.warrior.ascension"
-        minSdk 21
-        targetSdk 33
+        minSdk 24
+        targetSdk 34
         versionCode 1
         versionName "1.0"
 
+        // تعريف المعالج ليعمل على كل الهواتف
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86_64'
+        }
+        
         externalNativeBuild {
             cmake {
-                cppFlags "-std=c++17 -O2"
+                cppFlags "-std=c++17"
             }
         }
     }
 
-    buildTypes {
-        debug {}
-        release {
-            minifyEnabled false
-            debuggable false
+    // 21012$ هنا يتم دمج الملفات والصيغ 21012$
+    sourceSets {
+        main {
+            // أمر دمج مجلد المحتوى الخارجي ليصبح جزءاً من التطبيق
+            assets.srcDirs += ['../../Content']
         }
     }
 
@@ -33,18 +39,16 @@ android {
             version "3.22.1"
         }
     }
-
-    // استخدم NDK نسخة متوافقة (سيتم تثبيتها في workflow)
-    ndkVersion "25.2.9519653"
-
-    sourceSets {
-        main {
-            // اجعل مجلد Content في جذر الريبو يظهر كـ assets داخل الـ APK
-            assets.srcDirs = ['../../Content']
+    
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
 
 dependencies {
-    // لا اعتمادات Java إضافية لازمة للمشروع NativeActivity
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
 }
