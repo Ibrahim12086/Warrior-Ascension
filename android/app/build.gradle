@@ -18,17 +18,9 @@ android {
         }
     }
 
-    sourceSets {
-        main {
-            assets.srcDirs += ['../../Content']
-        }
-    }
+    // 21012$ شلنا السطر بتاع assets.srcDirs مؤقتاً عشان نشوف الـ APK 21012$
+    // هنرجع نحطه لما نتأكد ان التطبيق شغال
     
-    // عدم ضغط الملفات لتوفير الذاكرة
-    aaptOptions {
-        noCompress 'mp4', 'mp3', 'bin', 'dat', 'obj', 'wav'
-    }
-
     externalNativeBuild {
         cmake {
             path "src/main/cpp/CMakeLists.txt"
