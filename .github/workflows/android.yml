@@ -1,4 +1,4 @@
-name: Skeleton Build (Code Only)
+name: Reconstruct and Build
 on: [push]
 
 jobs:
@@ -14,25 +14,82 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Clean and Build
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Nuking Old Configs & Generating Fresh Build System
         run: |
+          # مسح كل إعدادات جرادل القديمة لأنها السبب
+          rm -rf android/build.gradle android/settings.gradle android/gradle
+          rm -rf android/app/build.gradle
+          
+          # إنشاء مجلدات ضرورية
+          mkdir -p android/app/src/main
+          
+          # 1. إنشاء ملف settings.gradle سليم
+          echo "rootProject.name = 'WarriorAscension'" > android/settings.gradle
+          echo "include ':app'" >> android/settings.gradle
+          
+          # 2. إنشاء ملف build.gradle الرئيسي
+          cat <<EOG > android/build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.1'
+              }
+          }
+          EOG
+          
+          # 3. إنشاء ملف build.gradle للتطبيق (بدون تعقيدات)
+          cat <<EOG > android/app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          
+          android {
+              namespace 'com.warrior.ascension'
+              compileSdk 34
+              
+              defaultConfig {
+                  applicationId "com.warrior.ascension"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+                  
+                  ndk {
+                      abiFilters 'armeabi-v7a', 'arm64-v8a'
+                  }
+                  
+                  externalNativeBuild {
+                      cmake {
+                          cppFlags "-std=c++17"
+                      }
+                  }
+              }
+              
+              externalNativeBuild {
+                  cmake {
+                      path "src/main/cpp/CMakeLists.txt"
+                      version "3.22.1"
+                  }
+              }
+          }
+          
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOG
+          
+          # 4. البناء باستخدام Gradle المثبت في النظام
           cd android
-          # تنظيف أي بقايا قديمة
-          rm -rf .gradle build app/build
-          
-          # إعطاء صلاحية التشغيل
-          chmod +x gradlew || true
-          
-          # البناء بدون ملفات ثقيلة
-          # إذا لم يوجد gradlew سنستخدم gradle المباشر
-          if [ -f gradlew ]; then
-            ./gradlew assembleDebug --stacktrace
-          else
-            gradle assembleDebug --stacktrace
-          fi
+          gradle assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Ascension-CodeOnly
+          name: Warrior-Fresh-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
