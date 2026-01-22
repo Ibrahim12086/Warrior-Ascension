@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace 'com.warrior.ascension'
-    compileSdk 34
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.warrior.ascension"
         minSdk 24
-        targetSdk 34
+        targetSdk 33
         versionCode 1
         versionName "1.0"
 
@@ -18,14 +18,9 @@ android {
         }
     }
 
-    // !!! هنا شلنا السطر اللي كان بيدمج الملفات التقيلة !!!
-    // sourceSets { main { assets.srcDirs += ... } } -> ملغي
-
-    externalNativeBuild {
-        cmake {
-            path "src/main/cpp/CMakeLists.txt"
-            version "3.22.1"
-        }
+    // عدم ضغط الملفات لتسريع البناء ومنع الانهيار
+    aaptOptions {
+        noCompress 'mp4', 'mp3', 'bin', 'dat', 'obj'
     }
 
     buildTypes {
@@ -34,9 +29,17 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    
+    // ربط ملفات C++
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
 }
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'com.google.android.material:material:1.8.0'
 }

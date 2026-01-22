@@ -1,4 +1,4 @@
-name: Reconstruct and Build
+name: Golden Standard Build
 on: [push]
 
 jobs:
@@ -14,82 +14,25 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Nuking Old Configs & Generating Fresh Build System
+      - name: Setup Gradle 8.0 (Manual)
         run: |
-          # مسح كل إعدادات جرادل القديمة لأنها السبب
-          rm -rf android/build.gradle android/settings.gradle android/gradle
-          rm -rf android/app/build.gradle
+          # تحميل النسخة الذهبية يدوياً لضمان التوافق
+          wget -q https://services.gradle.org/distributions/gradle-8.0-bin.zip
+          unzip -q gradle-8.0-bin.zip
           
-          # إنشاء مجلدات ضرورية
-          mkdir -p android/app/src/main
+          # ضبط المسار
+          export GRADLE_HOME=$PWD/gradle-8.0
+          export PATH=$GRADLE_HOME/bin:$PATH
           
-          # 1. إنشاء ملف settings.gradle سليم
-          echo "rootProject.name = 'WarriorAscension'" > android/settings.gradle
-          echo "include ':app'" >> android/settings.gradle
+          # التأكد من النسخة
+          gradle -v
           
-          # 2. إنشاء ملف build.gradle الرئيسي
-          cat <<EOG > android/build.gradle
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.1'
-              }
-          }
-          EOG
-          
-          # 3. إنشاء ملف build.gradle للتطبيق (بدون تعقيدات)
-          cat <<EOG > android/app/build.gradle
-          plugins {
-              id 'com.android.application'
-          }
-          
-          android {
-              namespace 'com.warrior.ascension'
-              compileSdk 34
-              
-              defaultConfig {
-                  applicationId "com.warrior.ascension"
-                  minSdk 24
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-                  
-                  ndk {
-                      abiFilters 'armeabi-v7a', 'arm64-v8a'
-                  }
-                  
-                  externalNativeBuild {
-                      cmake {
-                          cppFlags "-std=c++17"
-                      }
-                  }
-              }
-              
-              externalNativeBuild {
-                  cmake {
-                      path "src/main/cpp/CMakeLists.txt"
-                      version "3.22.1"
-                  }
-              }
-          }
-          
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-          }
-          EOG
-          
-          # 4. البناء باستخدام Gradle المثبت في النظام
+          # البدء في البناء
           cd android
-          gradle assembleDebug --stacktrace --no-daemon
+          gradle assembleDebug --stacktrace --no-daemon --max-workers=2
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Fresh-Build
+          name: Warrior-Ascension-Standard
           path: android/app/build/outputs/apk/debug/app-debug.apk
