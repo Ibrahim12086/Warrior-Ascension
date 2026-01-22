@@ -1,4 +1,4 @@
-name: Warrior Ascension Gradle9 Fix
+name: Warrior Ascension Direct Build
 
 on:
   push:
@@ -17,24 +17,24 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 1. تجهيز المجلدات ونسخ ملفاتك (Content, Source, GameEngine)
-      - name: Sync Project Files
+      # 1. بناء الهيكل ونقل كل ملفاتك بدون استثناء
+      - name: Sync All Project Files
         run: |
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/cpp
           mkdir -p android/app/src/main/res/mipmap-hdpi
           mkdir -p android/app/src/main/java/com/ibrahim/warrior
           
-          # نسخ ملفاتك الأساسية (الـ 50 ميجا)
+          # نقل كل المحتويات البرمجية والجرافيك
           cp -r Content/* android/app/src/main/assets/ || true
           cp -r Source/* android/app/src/main/cpp/ || true
           cp -r GameEngine/* android/app/src/main/cpp/ || true
           
-          # الأيقونة
+          # الأيقونة: بياخد أول صورة png يلاقيها
           find . -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
 
-      # 2. ملفات الإعدادات (متوافقة مع Gradle 9)
-      - name: Configure Gradle Settings
+      # 2. ملفات الإعدادات (صيغة Gradle 9 الحديثة)
+      - name: Create Modern Gradle Config
         run: |
           echo "include ':app'" > android/settings.gradle
           
@@ -48,7 +48,6 @@ jobs:
           }
           GRADLE_ROOT
 
-          # هنا الحل: تم تغيير طريقة الـ dependencies لتناسب Gradle 9
           cat <<GRADLE_APP > android/app/build.gradle
           plugins {
               id 'com.android.application'
@@ -75,22 +74,26 @@ jobs:
                       version "3.22.1"
                   }
               }
+              
+              // للسماح للملفات الكبيرة بالدخول بدون ضغط
+              aaptOptions {
+                  noCompress ""
+              }
           }
 
           dependencies {
-              // كتابة التبعيات بالطريقة الحديثة
+              // الصيغة الجديدة للتباعيات
               implementation "androidx.appcompat:appcompat:1.6.1"
-              implementation "com.google.android.material:material:1.9.0"
           }
           GRADLE_APP
 
-      # 3. إنشاء ملف الربط CMake و MainActivity (لضمان التشغيل)
-      - name: Create Engine Linker
+      # 3. ملف الربط البرمجي (CMake)
+      - name: Setup CMake Linker
         run: |
           cat <<CMAKE > android/app/src/main/cpp/CMakeLists.txt
           cmake_minimum_required(VERSION 3.10.2)
           project("warrior_game")
-          file(GLOB_RECURSE SRC_FILES *.cpp *.c)
+          file(GLOB_RECURSE SRC_FILES *.cpp *.c *.cc)
           if(SRC_FILES)
               add_library(warrior_lib SHARED ${SRC_FILES})
               find_library(log-lib log)
@@ -113,15 +116,16 @@ jobs:
           </manifest>
           MANIFEST
 
-      # 4. البناء النهائي
-      - name: Run Final Build
+      # 4. البناء الفعلي
+      - name: Build
         working-directory: ./android
         run: |
-          chmod +x gradlew || gradle wrapper
+          gradle wrapper --gradle-version 8.0
+          chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Final-Build
+          name: Warrior-Build
           path: "android/app/build/outputs/apk/debug/*.apk"
