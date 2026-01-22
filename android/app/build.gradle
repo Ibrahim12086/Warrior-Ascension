@@ -18,9 +18,9 @@ android {
         }
     }
 
-    // 21012$ شلنا السطر بتاع assets.srcDirs مؤقتاً عشان نشوف الـ APK 21012$
-    // هنرجع نحطه لما نتأكد ان التطبيق شغال
-    
+    // !!! هنا شلنا السطر اللي كان بيدمج الملفات التقيلة !!!
+    // sourceSets { main { assets.srcDirs += ... } } -> ملغي
+
     externalNativeBuild {
         cmake {
             path "src/main/cpp/CMakeLists.txt"

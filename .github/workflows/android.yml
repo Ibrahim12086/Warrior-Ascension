@@ -1,4 +1,4 @@
-name: Slow and Steady Build
+name: Skeleton Build (Code Only)
 on: [push]
 
 jobs:
@@ -14,20 +14,25 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build (Sequential)
+      - name: Clean and Build
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.2-bin.zip
-          unzip -q gradle-8.2-bin.zip
-          export PATH=$PWD/gradle-8.2/bin:$PATH
-          
           cd android
+          # تنظيف أي بقايا قديمة
           rm -rf .gradle build app/build
           
-          # الأمر --no-parallel هو السر هنا
-          gradle assembleDebug --no-daemon --no-parallel --stacktrace --info
+          # إعطاء صلاحية التشغيل
+          chmod +x gradlew || true
           
+          # البناء بدون ملفات ثقيلة
+          # إذا لم يوجد gradlew سنستخدم gradle المباشر
+          if [ -f gradlew ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Ascension-Final
+          name: Warrior-Ascension-CodeOnly
           path: android/app/build/outputs/apk/debug/app-debug.apk
