@@ -1,4 +1,4 @@
-name: Warrior Ascension Final Stable Build
+name: Warrior Ascension Fix
 
 on:
   push:
@@ -17,45 +17,38 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # بناء بيئة العمل من غير مسح ملفاتك الأصلية
-      - name: Prepare Android Environment
+      # 1. نقل كل ملفات مشروعك كما هي
+      - name: Sync Your Files
         run: |
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/cpp
           mkdir -p android/app/src/main/java/com/ibrahim/warrior
           mkdir -p android/app/src/main/res/mipmap-hdpi
-
-          # نقل ملفاتك (البرمجة والمحتوى)
+          
+          # نقل ملفاتك الأصلية للمسارات الصحيحة
           cp -r Content/* android/app/src/main/assets/ || true
           cp -r Source/* android/app/src/main/cpp/ || true
           cp -r GameEngine/* android/app/src/main/cpp/ || true
           
-          # الأيقونة
+          # وضع الأيقونة
           find . -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
 
-      # إنشاء ملف البداية (ده اللي هيمنع الـ Crash اللي في الصورة)
-      - name: Create Entry Point
-        run: |
-          cat <<JAVA > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
-          package com.ibrahim.warrior;
-          import android.app.Activity;
-          import android.os.Bundle;
-          public class MainActivity extends Activity {
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  // هنا المحرك بيبدأ يشتغل
-              }
-          }
-          JAVA
-
-      - name: Configure Build System
+      # 2. ملفات بناء بسيطة جداً متوافقة مع Gradle 9
+      - name: Simple Build Config
         run: |
           echo "include ':app'" > android/settings.gradle
-          echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.1.0' } }" > android/build.gradle
-          echo "allprojects { repositories { google(); mavenCentral() } }" >> android/build.gradle
           
-          cat <<APP_GRADLE > android/app/build.gradle
+          cat <<GRADLE_ROOT > android/build.gradle
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }
+          GRADLE_ROOT
+
+          cat <<GRADLE_APP > android/app/build.gradle
           plugins { id 'com.android.application' }
           android {
               namespace 'com.ibrahim.warrior'
@@ -68,8 +61,30 @@ jobs:
                   versionName "1.0"
               }
           }
-          APP_GRADLE
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          GRADLE_APP
 
+      # 3. منع خروج التطبيق (حل الـ Crash)
+      - name: Entry Point Fix
+        run: |
+          echo "package com.ibrahim.warrior; import android.app.Activity; public class MainActivity extends Activity {}" > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
+          
+          cat <<MANIFEST > android/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.ibrahim.warrior">
+              <application android:label="Warrior" android:icon="@mipmap/ic_launcher">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          MANIFEST
+
+      # 4. البناء
       - name: Build APK
         working-directory: ./android
         run: |
@@ -77,8 +92,8 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Ascension-Final
+          name: Warrior-Fixed-APK
           path: "android/app/build/outputs/apk/debug/*.apk"
