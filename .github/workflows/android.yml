@@ -1,4 +1,4 @@
-name: Warrior Ascension Quick Build
+name: Warrior Ascension Gradle9 Fix
 
 on:
   push:
@@ -17,58 +17,75 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 1. تنظيف وتجهيز المجلدات الأساسية فقط
-      - name: Prepare Folders
+      # 1. تجهيز المجلدات ونسخ ملفاتك (Content, Source, GameEngine)
+      - name: Sync Project Files
         run: |
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/cpp
           mkdir -p android/app/src/main/res/mipmap-hdpi
+          mkdir -p android/app/src/main/java/com/ibrahim/warrior
           
-          # نقل الملفات الموجودة فعلياً
-          [ -d "Content" ] && cp -r Content/* android/app/src/main/assets/ || echo "No Content folder"
-          [ -d "Source" ] && cp -r Source/* android/app/src/main/cpp/ || echo "No Source folder"
-          [ -d "GameEngine" ] && cp -r GameEngine/* android/app/src/main/cpp/ || echo "No GameEngine folder"
+          # نسخ ملفاتك الأساسية (الـ 50 ميجا)
+          cp -r Content/* android/app/src/main/assets/ || true
+          cp -r Source/* android/app/src/main/cpp/ || true
+          cp -r GameEngine/* android/app/src/main/cpp/ || true
           
-          # البحث عن أي صورة png لتكون أيقونة
-          find . -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png || echo "No Icon found"
+          # الأيقونة
+          find . -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
 
-      # 2. إنشاء ملفات Gradle بسيطة جداً (بدون أخطاء DependencyHandler)
-      - name: Create Simple Gradle
+      # 2. ملفات الإعدادات (متوافقة مع Gradle 9)
+      - name: Configure Gradle Settings
         run: |
           echo "include ':app'" > android/settings.gradle
           
           cat <<GRADLE_ROOT > android/build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:7.4.2' }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
           }
           allprojects {
               repositories { google(); mavenCentral() }
           }
           GRADLE_ROOT
 
+          # هنا الحل: تم تغيير طريقة الـ dependencies لتناسب Gradle 9
           cat <<GRADLE_APP > android/app/build.gradle
-          plugins { id 'com.android.application' }
+          plugins {
+              id 'com.android.application'
+          }
+
           android {
               namespace 'com.ibrahim.warrior'
               compileSdk 33
+              
               defaultConfig {
                   applicationId "com.ibrahim.warrior"
                   minSdk 24
                   targetSdk 33
                   versionCode 1
                   versionName "1.0"
-                  externalNativeBuild { cmake { cppFlags "-std=c++17" } }
+                  externalNativeBuild {
+                      cmake { cppFlags "-std=c++17" }
+                  }
               }
-              externalNativeBuild { cmake { path "src/main/cpp/CMakeLists.txt" } }
+
+              externalNativeBuild {
+                  cmake {
+                      path "src/main/cpp/CMakeLists.txt"
+                      version "3.22.1"
+                  }
+              }
           }
+
           dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
+              // كتابة التبعيات بالطريقة الحديثة
+              implementation "androidx.appcompat:appcompat:1.6.1"
+              implementation "com.google.android.material:material:1.9.0"
           }
           GRADLE_APP
 
-      # 3. إنشاء ملف الربط (CMake)
-      - name: Create CMake
+      # 3. إنشاء ملف الربط CMake و MainActivity (لضمان التشغيل)
+      - name: Create Engine Linker
         run: |
           cat <<CMAKE > android/app/src/main/cpp/CMakeLists.txt
           cmake_minimum_required(VERSION 3.10.2)
@@ -81,12 +98,11 @@ jobs:
           endif()
           CMAKE
 
-      # 4. إنشاء المانيفست الأساسي
-      - name: Create Manifest
-        run: |
+          echo "package com.ibrahim.warrior; import android.app.Activity; public class MainActivity extends Activity {}" > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
+          
           cat <<MANIFEST > android/app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.ibrahim.warrior">
-              <application android:label="Warrior Ascension" android:icon="@mipmap/ic_launcher">
+              <application android:label="Warrior" android:icon="@mipmap/ic_launcher">
                   <activity android:name=".MainActivity" android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
@@ -96,20 +112,16 @@ jobs:
               </application>
           </manifest>
           MANIFEST
-          # إنشاء كود تشغيل فارغ لمنع الـ Crash
-          mkdir -p android/app/src/main/java/com/ibrahim/warrior
-          echo "package com.ibrahim.warrior; import android.app.Activity; public class MainActivity extends Activity {}" > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
 
-      # 5. البناء النهائي
-      - name: Build APK
+      # 4. البناء النهائي
+      - name: Run Final Build
         working-directory: ./android
         run: |
-          gradle wrapper --gradle-version 7.5
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          chmod +x gradlew || gradle wrapper
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Ascension-Fix
+          name: Warrior-Final-Build
           path: "android/app/build/outputs/apk/debug/*.apk"
