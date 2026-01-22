@@ -1,4 +1,4 @@
-name: Warrior Ascension Engine Rebuilder
+name: Warrior Ascension Auto-Repair & Build
 
 on:
   push:
@@ -22,23 +22,28 @@ jobs:
         with:
           gradle-version: 7.5
 
-      # خطوة "القلب المفتوح": إعادة كتابة ملفات النظام لربط الكود
-      - name: Reconstruct Build System
+      # 1. تجهيز ونقل الملفات الضخمة (Assets & Source)
+      - name: Move Assets and Source
         run: |
-          # 1. تجهيز المجلدات
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/cpp
           mkdir -p android/app/src/main/res/mipmap-xxxhdpi
-
-          # 2. نقل ملفات اللعبة (Assets)
+          
+          # نقل المحتوى
+          echo "Moving Game Assets..."
           cp -r Content/* android/app/src/main/assets/ || true
-
-          # 3. تجميع كل كود C++ في مكان واحد
+          
+          # نقل الكود للترجمة
+          echo "Moving Source Code..."
           cp -r Source/* android/app/src/main/cpp/ || true
           cp -r GameEngine/* android/app/src/main/cpp/ || true
 
-          # 4. (مهم جداً) إنشاء ملف CMakeLists.txt جديد يجمع كل ملفات الـ CPP تلقائياً
-          # هذا يحل مشكلة "الخروج المفاجئ" لأن النظام سيتعرف أخيراً على الكود
+          # إعداد الأيقونة
+          find Content/Icons -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
+
+      # 2. إنشاء ملف CMakeLists.txt جديد وسليم
+      - name: Generate CMakeLists.txt
+        run: |
           echo "cmake_minimum_required(VERSION 3.10.2)" > android/app/src/main/cpp/CMakeLists.txt
           echo "project(\"warrior_game\")" >> android/app/src/main/cpp/CMakeLists.txt
           echo "file(GLOB_RECURSE SRC_FILES *.cpp *.c)" >> android/app/src/main/cpp/CMakeLists.txt
@@ -46,26 +51,72 @@ jobs:
           echo "find_library(log-lib log)" >> android/app/src/main/cpp/CMakeLists.txt
           echo "target_link_libraries(warrior_lib ${log-lib} android EGL GLESv2 OpenSLES)" >> android/app/src/main/cpp/CMakeLists.txt
 
-          # 5. تثبيت الأيقونة بشكل صحيح
-          find Content/Icons -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
-          
-          # 6. تحديث المانيفست ليعرف مكتبة C++ والأيقونة
-          sed -i 's/android:icon="[^"]*"/android:icon="@mipmap\/ic_launcher"/' android/app/src/main/AndroidManifest.xml || true
-          
-          # 7. تحديث Build.gradle لربط ملف الـ CMake الجديد
-          # يتم إضافة كود الربط إذا لم يكن موجوداً
-          if ! grep -q "externalNativeBuild" android/app/build.gradle; then
-            sed -i '/android {/a \    externalNativeBuild {\n        cmake {\n            path "src/main/cpp/CMakeLists.txt"\n        }\n    }' android/app/build.gradle
-          fi
+      # 3. الخطوة السحرية: إصلاح ملف build.gradle باستخدام بايثون (لتجنب الأخطاء)
+      - name: Python Fixer for Gradle
+        run: |
+          cat <<PYTHON_SCRIPT > fixer.py
+          import os
 
-      - name: Build Fixed APK
+          gradle_path = "android/app/build.gradle"
+          
+          # كود الربط الذي نريد إضافته
+          cmake_block = """
+              externalNativeBuild {
+                  cmake {
+                      path "src/main/cpp/CMakeLists.txt"
+                  }
+              }
+          """
+
+          with open(gradle_path, "r") as f:
+              content = f.read()
+
+          # التحقق مما إذا كان الكود موجوداً مسبقاً
+          if "externalNativeBuild" not in content:
+              # البحث عن نهاية كتلة android { وإضافة الكود قبلها
+              # نبحث عن آخر قوس إغلاق للكائن android
+              # هذه طريقة بسيطة: البحث عن 'defaultConfig' وإضافتها بعدها لضمان المكان الصحيح
+              if "defaultConfig {" in content:
+                  new_content = content.replace("defaultConfig {", "defaultConfig {" + cmake_block)
+                  with open(gradle_path, "w") as f:
+                      f.write(new_content)
+                  print("Success: Injecting CMake block into build.gradle")
+              else:
+                  print("Warning: Could not find good place to inject CMake block")
+          else:
+              print("Info: CMake block already exists")
+          
+          # إصلاح المانيفست للأيقونة
+          manifest_path = "android/app/src/main/AndroidManifest.xml"
+          try:
+              with open(manifest_path, "r") as f:
+                  m_content = f.read()
+              m_content = m_content.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@mipmap/ic_launcher"') # تأكيد
+              if 'android:icon' in m_content and '@mipmap/ic_launcher' not in m_content:
+                   # استبدال أي أيقونة موجودة بأيقونتنا
+                   import re
+                   m_content = re.sub(r'android:icon="[^"]*"', 'android:icon="@mipmap/ic_launcher"', m_content)
+              
+              with open(manifest_path, "w") as f:
+                  f.write(m_content)
+              print("Success: Manifest updated")
+          except:
+              print("Warning: Manifest not found")
+
+          PYTHON_SCRIPT
+          
+          # تشغيل السكربت
+          python3 fixer.py
+
+      # 4. البناء النهائي
+      - name: Build Fixed Project
         working-directory: ./android
         run: |
           gradle wrapper --gradle-version 7.5
           ./gradlew assembleDebug --stacktrace
 
-      - name: Upload Working APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Fixed-Engine
+          name: Warrior-Repaired-Game
           path: "android/app/build/outputs/apk/debug/*.apk"
