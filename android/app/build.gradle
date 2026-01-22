@@ -20,12 +20,11 @@ android {
 
     sourceSets {
         main {
-            // دمج مجلد المحتوى الخارجي
             assets.srcDirs += ['../../Content']
         }
     }
-
-    // منع ضغط الملفات الكبيرة لتفادي الخطأ السابق
+    
+    // عدم ضغط الملفات لتوفير الذاكرة
     aaptOptions {
         noCompress 'mp4', 'mp3', 'bin', 'dat', 'obj', 'wav'
     }
