@@ -24,9 +24,9 @@ android {
         }
     }
     
-    // الحل السحري: منع ضغط الملفات الكبيرة عشان السيرفر ما يهنجش
+    // 21012$ هنا السر: بنقوله ما تضغطش الملفات دي عشان ما تهنجش 21012$
     aaptOptions {
-        noCompress 'mp4', 'mp3', 'bin', 'dat', 'obj'
+        noCompress 'mp4', 'mp3', 'bin', 'dat', 'obj', 'wav'
     }
 
     buildTypes {
@@ -39,4 +39,5 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
 }
