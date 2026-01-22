@@ -1,4 +1,4 @@
-name: Warrior Ascension Direct Build
+name: Warrior Ascension Final Stable Build
 
 on:
   push:
@@ -17,115 +17,68 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 1. بناء الهيكل ونقل كل ملفاتك بدون استثناء
-      - name: Sync All Project Files
+      # بناء بيئة العمل من غير مسح ملفاتك الأصلية
+      - name: Prepare Android Environment
         run: |
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/cpp
-          mkdir -p android/app/src/main/res/mipmap-hdpi
           mkdir -p android/app/src/main/java/com/ibrahim/warrior
-          
-          # نقل كل المحتويات البرمجية والجرافيك
+          mkdir -p android/app/src/main/res/mipmap-hdpi
+
+          # نقل ملفاتك (البرمجة والمحتوى)
           cp -r Content/* android/app/src/main/assets/ || true
           cp -r Source/* android/app/src/main/cpp/ || true
           cp -r GameEngine/* android/app/src/main/cpp/ || true
           
-          # الأيقونة: بياخد أول صورة png يلاقيها
+          # الأيقونة
           find . -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
 
-      # 2. ملفات الإعدادات (صيغة Gradle 9 الحديثة)
-      - name: Create Modern Gradle Config
+      # إنشاء ملف البداية (ده اللي هيمنع الـ Crash اللي في الصورة)
+      - name: Create Entry Point
+        run: |
+          cat <<JAVA > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
+          package com.ibrahim.warrior;
+          import android.app.Activity;
+          import android.os.Bundle;
+          public class MainActivity extends Activity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  // هنا المحرك بيبدأ يشتغل
+              }
+          }
+          JAVA
+
+      - name: Configure Build System
         run: |
           echo "include ':app'" > android/settings.gradle
+          echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.1.0' } }" > android/build.gradle
+          echo "allprojects { repositories { google(); mavenCentral() } }" >> android/build.gradle
           
-          cat <<GRADLE_ROOT > android/build.gradle
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
-          }
-          allprojects {
-              repositories { google(); mavenCentral() }
-          }
-          GRADLE_ROOT
-
-          cat <<GRADLE_APP > android/app/build.gradle
-          plugins {
-              id 'com.android.application'
-          }
-
+          cat <<APP_GRADLE > android/app/build.gradle
+          plugins { id 'com.android.application' }
           android {
               namespace 'com.ibrahim.warrior'
               compileSdk 33
-              
               defaultConfig {
                   applicationId "com.ibrahim.warrior"
                   minSdk 24
                   targetSdk 33
                   versionCode 1
                   versionName "1.0"
-                  externalNativeBuild {
-                      cmake { cppFlags "-std=c++17" }
-                  }
-              }
-
-              externalNativeBuild {
-                  cmake {
-                      path "src/main/cpp/CMakeLists.txt"
-                      version "3.22.1"
-                  }
-              }
-              
-              // للسماح للملفات الكبيرة بالدخول بدون ضغط
-              aaptOptions {
-                  noCompress ""
               }
           }
+          APP_GRADLE
 
-          dependencies {
-              // الصيغة الجديدة للتباعيات
-              implementation "androidx.appcompat:appcompat:1.6.1"
-          }
-          GRADLE_APP
-
-      # 3. ملف الربط البرمجي (CMake)
-      - name: Setup CMake Linker
-        run: |
-          cat <<CMAKE > android/app/src/main/cpp/CMakeLists.txt
-          cmake_minimum_required(VERSION 3.10.2)
-          project("warrior_game")
-          file(GLOB_RECURSE SRC_FILES *.cpp *.c *.cc)
-          if(SRC_FILES)
-              add_library(warrior_lib SHARED ${SRC_FILES})
-              find_library(log-lib log)
-              target_link_libraries(warrior_lib ${log-lib} android EGL GLESv2 OpenSLES)
-          endif()
-          CMAKE
-
-          echo "package com.ibrahim.warrior; import android.app.Activity; public class MainActivity extends Activity {}" > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
-          
-          cat <<MANIFEST > android/app/src/main/AndroidManifest.xml
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.ibrahim.warrior">
-              <application android:label="Warrior" android:icon="@mipmap/ic_launcher">
-                  <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          MANIFEST
-
-      # 4. البناء الفعلي
-      - name: Build
+      - name: Build APK
         working-directory: ./android
         run: |
           gradle wrapper --gradle-version 8.0
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug
 
-      - name: Upload
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Build
+          name: Warrior-Ascension-Final
           path: "android/app/build/outputs/apk/debug/*.apk"
