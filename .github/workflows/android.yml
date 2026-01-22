@@ -1,4 +1,4 @@
-name: Warrior Ascension Final Clean Build
+name: Warrior Ascension Clean Reset
 
 on:
   push:
@@ -17,22 +17,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 1. مسح أي عكاك قديم في مجلد android
-      - name: Wipe and Reset
+      # 1. مسح شامل لكل ملفات أندرويد القديمة والـ Cache
+      - name: Global Cleanup
         run: |
           rm -rf android
+          rm -rf .gradle
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/java/com/ibrahim/warrior
           mkdir -p android/app/src/main/res/mipmap-hdpi
 
-      # 2. إنشاء ملفات البناء (بأحدث صيغة بيحبها GitHub حالياً)
-      - name: Create Clean Config
+      # 2. إنشاء إعدادات "مختصرة جداً" عشان مديش فرصة لـ Gradle يغلط
+      - name: Create Minimal Config
         run: |
           echo "include ':app'" > android/settings.gradle
-          echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.1.0' } }" > android/build.gradle
-          echo "allprojects { repositories { google(); mavenCentral() } }" >> android/build.gradle
           
-          cat <<APP_GRADLE > android/app/build.gradle
+          cat <<GRADLE_ROOT > android/build.gradle
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }
+          GRADLE_ROOT
+
+          cat <<GRADLE_APP > android/app/build.gradle
           plugins { id 'com.android.application' }
           android {
               namespace 'com.ibrahim.warrior'
@@ -46,20 +55,22 @@ jobs:
               }
           }
           dependencies {
+              // لا تضع أي مكتبات هنا حالياً لضمان نجاح البناء الأول
               implementation "androidx.appcompat:appcompat:1.6.1"
           }
-          APP_GRADLE
+          GRADLE_APP
 
-      # 3. نقل ملفاتك للمكان الصح (بدون تحديد أحجام)
-      - name: Inject Project Files
+      # 3. نقل ملفاتك (التي تظهر في صورك)
+      - name: Inject Game Data
         run: |
           cp -r Content/* android/app/src/main/assets/ || true
           cp -r Source/* android/app/src/main/cpp/ || true
           cp -r GameEngine/* android/app/src/main/cpp/ || true
+          # وضع أيقونة اللعبة لتجنب الشكل الافتراضي
           find . -name "*.png" | head -n 1 | xargs -I {} cp {} android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
 
-      # 4. إنشاء ملف البداية والمانيفست (عشان اللعبة ما تقفلش)
-      - name: Final Setup
+      # 4. إصلاح المانيفست (عشان اللعبة تفتح وما تقفلش)
+      - name: Setup Entry Point
         run: |
           echo "package com.ibrahim.warrior; import android.app.Activity; public class MainActivity extends Activity {}" > android/app/src/main/java/com/ibrahim/warrior/MainActivity.java
           cat <<MANIFEST > android/app/src/main/AndroidManifest.xml
@@ -75,16 +86,16 @@ jobs:
           </manifest>
           MANIFEST
 
-      # 5. البناء
-      - name: Execute Build
+      # 5. البناء بدون استخدام Wrapper قديم
+      - name: Force Build
         working-directory: ./android
         run: |
           gradle wrapper --gradle-version 8.0
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Warrior-Success-Build
+          name: Warrior-Final-APK
           path: "android/app/build/outputs/apk/debug/*.apk"
